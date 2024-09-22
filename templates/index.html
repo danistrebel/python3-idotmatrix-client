@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>iDotMatrix Controller</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .device-button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        .device-page {
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .device-page h2 {
+            margin-top: 0;
+        }
+        .action-button {
+            margin: 5px;
+            padding: 8px 16px;
+            font-size: 14px;
+            border: none;
+            border-radius: 3px;
+            background-color: #008CBA;
+            color: white;
+            cursor: pointer;
+        }
+        .console {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+            width: 400px;
+            height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>iDotMatrix Controller</h1>
+        <div id="homepage">
+            <button id="add-device-button">Add Device</button>
+        </div>
+        <div id="device-pages">
+            </div>
+    </div>
+
+    <script>
+        const homepage = document.getElementById('homepage');
+        const devicePages = document.getElementById('device-pages');
+        const addDeviceButton = document.getElementById('add-device-button');
+
+        let devices = {};
+
+        // Function to fetch and display devices from the server
+        function loadDevices() {
+          // Check if devices are cached in sessionStorage
+          if (sessionStorage.getItem('devices')) {
+            try {
+              devices = JSON.parse(sessionStorage.getItem('devices'));
+              displayDevices();
+              return; // Data loaded from cache, exit function
+            } catch (error) {
+              console.error("Error loading devices from cache:", error);
+              // If error occurs, proceed to fetch from server
+            }
+          }
+        
+          // If not in cache, fetch from server
+          fetch('/scan')
+            .then(response => response.json())
+            .then(data => {
+              devices = data;
+              displayDevices();
+        
+              // Store devices in sessionStorage
+              sessionStorage.setItem('devices', JSON.stringify(data));
+            });
+        }
+        
+
+        // Function to display devices on the homepage
+        function displayDevices() {
+            homepage.innerHTML = '<button id="add-device-button">Add Device</button>';
+            for (const index in devices) {
+                const deviceButton = document.createElement('button');
+                deviceButton.classList.add('device-button');
+                deviceButton.textContent = devices[index].device_name;
+                deviceButton.addEventListener('click', () => showDevicePage(index));
+                homepage.appendChild(deviceButton);
+            }
+        }
+
+        // Function to show the device page for a specific device
+        function showDevicePage(deviceIndex) {
+            console.log(`Showing device page for ${devices[deviceIndex].device_name}`);
+            const devicePage = document.createElement('div');
+            devicePage.classList.add('device-page');
+            devicePage.classList.add('device-foo');
+            devicePage.innerHTML = `
+                <h2>${devices[deviceIndex].device_name}</h2>
+                <button class="action-button" data-action="--clock-with-date">Clock Style</button>
+                <button class="action-button" data-action="sync-time">Sync Time</button>
+                <button class="action-button" data-action="set-time">Set Time</button>
+                <button class="action-button" data-action="--screen on">Screen On</button>
+                <button class="action-button" data-action="--screen off">Screen Off</button>
+                <button class="action-button" data-action="--stop-watch">Stop Watch</button>
+                <button class="action-button" data-action="countdown-timer">Countdown Timer</button>
+                <button class="action-button" data-action="set-text">Set Text</button>
+                <button class="action-button" data-action="color-studio">Color Studio</button>
+                <button class="action-button" data-action="scoreboard">Scoreboard</button>
+                <button class="action-button" data-action="set-image">Set Image</button>
+                <button class="action-button" data-action="set-gif">Set GIF</button>
+                <div class="console"></div>
+            `;
+            devicePages.innerHTML = ''; // Clear previous device pages
+
+            devicePages.classList.add('device-foo');
+            devicePages.appendChild(devicePage);
+
+            // Add event listeners to action buttons
+            const actionButtons = devicePage.querySelectorAll('.action-button');
+            actionButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const action = button.dataset.action;
+                    handleDeviceAction(devices[deviceIndex].mac_address, action);
+                });
+            });
+        }
+
+        // Function to handle device actions
+        function handleDeviceAction(macAddress, action) {
+            console.log(`Device ${macAddress}: Action ${action}`);
+           
+            // Send the action as a command to the server
+            fetch(`/device/${macAddress}/command`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `command=${action}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Handle the response from the server
+                console.log(data); 
+                // You might want to update the UI here based on the response
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Event listener for the "Add Device" button
+        addDeviceButton.addEventListener('click', () => {
+            // Implement logic to scan for devices and display them in a list
+            // Allow the user to select a device and add it to the homepage
+        });
+
+        // Load devices on page load
+        loadDevices();
+    </script>
+</body>
+</html>
